@@ -27,16 +27,16 @@ use std::rc::Rc;
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 struct HeadlessContext {
-    width: u32,
-    height: u32,
+    width: Cell<u32>,
+    height: Cell<u32>,
     context: osmesa_sys::OSMesaContext,
     buffer: RefCell<Vec<u32>>,
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
 struct HeadlessContext {
-    width: u32,
-    height: u32,
+    width: Cell<u32>,
+    height: Cell<u32>,
 }
 
 impl HeadlessContext {
@@ -59,8 +59,8 @@ impl HeadlessContext {
         assert!(!context.is_null());
 
         HeadlessContext {
-            width: width,
-            height: height,
+            width: Cell::new(width),
+            height: Cell::new(height),
             context: context,
             buffer: RefCell::new(vec![0; (width * height) as usize]),
         }
@@ -69,8 +69,8 @@ impl HeadlessContext {
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     fn new(width: u32, height: u32, _share: Option<&HeadlessContext>) -> HeadlessContext {
         HeadlessContext {
-            width: width,
-            height: height,
+            width: Cell::new(width),
+            height: Cell::new(height),
         }
     }
 
@@ -92,6 +92,7 @@ pub struct Window {
     fullscreen: Cell<bool>,
     gl: Rc<dyn gl::Gl>,
     device_pixels_per_px: Option<f32>,
+    size_changed: Cell<bool>,
 }
 
 impl Window {
@@ -114,6 +115,7 @@ impl Window {
             animation_state: Cell::new(AnimationState::Idle),
             fullscreen: Cell::new(false),
             device_pixels_per_px,
+            size_changed: Cell::new(false),
         };
 
         Rc::new(window)
@@ -129,11 +131,23 @@ impl Window {
 
 impl WindowPortsMethods for Window {
     fn get_events(&self) -> Vec<WindowEvent> {
-        vec![]
+        let mut vec = Vec::new();
+
+        if self.size_changed.take() {
+            vec.push(WindowEvent::Resize);
+        }
+
+        vec
+    }
+
+    fn set_inner_size(&self, size: DeviceIntSize) {
+        self.context.width.set(size.width as u32);
+        self.context.height.set(size.height as u32);
+        self.size_changed.set(true)
     }
 
     fn has_events(&self) -> bool {
-        false
+        self.size_changed.get()
     }
 
     fn id(&self) -> glutin::WindowId {
@@ -142,7 +156,7 @@ impl WindowPortsMethods for Window {
 
     fn page_height(&self) -> f32 {
         let dpr = self.servo_hidpi_factor();
-        self.context.height as f32 * dpr.get()
+        self.context.height.get() as f32 * dpr.get()
     }
 
     fn set_fullscreen(&self, state: bool) {
@@ -159,6 +173,7 @@ impl WindowPortsMethods for Window {
 
     fn winit_event_to_servo_event(&self, _event: glutin::WindowEvent) {
         // Not expecting any winit events.
+        unreachable!("Did not expect a WindowEvent for a headless session");
     }
 }
 
@@ -169,7 +184,7 @@ impl WindowMethods for Window {
 
     fn get_coordinates(&self) -> EmbedderCoordinates {
         let dpr = self.servo_hidpi_factor();
-        let size = (Size2D::new(self.context.width, self.context.height).to_f32() * dpr).to_i32();
+        let size = (Size2D::new(self.context.width.get(), self.context.height.get()).to_f32() * dpr).to_i32();
         let viewport = DeviceIntRect::new(Point2D::zero(), size);
         let framebuffer = DeviceIntSize::from_untyped(size.to_untyped());
         EmbedderCoordinates {
@@ -196,8 +211,8 @@ impl WindowMethods for Window {
                 self.context.context,
                 buffer.as_mut_ptr() as *mut _,
                 gl::UNSIGNED_BYTE,
-                self.context.width as i32,
-                self.context.height as i32,
+                self.context.width.get() as i32,
+                self.context.height.get() as i32,
             );
             assert_ne!(ret, 0);
         };
@@ -225,13 +240,13 @@ impl webxr::glwindow::GlWindow for Window {
     fn size(&self) -> UntypedSize2D<gl::GLsizei> {
         let dpr = self.servo_hidpi_factor().get();
         Size2D::new(
-            (self.context.width as f32 * dpr) as gl::GLsizei,
-            (self.context.height as f32 * dpr) as gl::GLsizei,
+            (self.context.width.get() as f32 * dpr) as gl::GLsizei,
+            (self.context.height.get() as f32 * dpr) as gl::GLsizei,
         )
     }
     fn new_window(&self) -> Result<Rc<dyn webxr::glwindow::GlWindow>, ()> {
-        let width = self.context.width;
-        let height = self.context.height;
+        let width = self.context.width.get();
+        let height = self.context.height.get();
         let share = Some(&self.context);
         let context = HeadlessContext::new(width, height, share);
         let gl = self.gl.clone();
@@ -241,6 +256,7 @@ impl webxr::glwindow::GlWindow for Window {
             animation_state: Cell::new(AnimationState::Idle),
             fullscreen: Cell::new(false),
             device_pixels_per_px: self.device_pixels_per_px,
+            size_changed: Cell::new(false)
         }))
     }
     fn get_rotation(&self) -> Rotation3D<f32, UnknownUnit, UnknownUnit> {
