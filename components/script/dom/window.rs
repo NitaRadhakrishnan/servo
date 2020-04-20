@@ -57,7 +57,7 @@ use crate::fetch;
 use crate::layout_image::fetch_image_for_layout;
 use crate::malloc_size_of::MallocSizeOf;
 use crate::microtask::MicrotaskQueue;
-use crate::realms::InRealm;
+use crate::realms::{AlreadyInRealm, InRealm};
 use crate::script_runtime::{
     CommonScriptMsg, JSContext, Runtime, ScriptChan, ScriptPort, ScriptThreadEventCategory,
 };
@@ -67,6 +67,8 @@ use crate::task_manager::TaskManager;
 use crate::task_source::{TaskSource, TaskSourceName};
 use crate::timers::{IsInterval, TimerCallback};
 use crate::webdriver_handlers::jsval_to_webdriver;
+use crate::dom::promise::Promise;
+use crate::dom::imagebitmap::ImageBitmap;
 use app_units::Au;
 use base64;
 use bluetooth_traits::BluetoothRequest;
@@ -887,6 +889,36 @@ impl WindowMethods for Window {
     fn QueueMicrotask(&self, callback: Rc<VoidFunction>) {
         self.upcast::<GlobalScope>()
             .queue_function_as_microtask(callback);
+    }
+
+    // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-createimagebitmap
+    fn CreateImageBitmap(&self, image: ImageBitmapSource, options: ImageBitmapOptions) -> Rc<Promise> {
+        let global = self.global();
+        let in_realm_proof = AlreadyInRealm::assert(&global);
+        let p = Promise::new_in_current_realm(&global, InRealm::Already(&in_realm_proof));
+        if options.contains_key("resizewidth") {
+            if options.get("resizewidth").unwrap() == 0 {
+                p.reject_error(Error::InvalidState)
+            }
+        }
+        if options.contains_key("resizeheight") {
+            if options.get("resizeheight").unwrap() == 0 {
+                p.reject_error(Error::InvalidState)
+            }
+        }
+
+        let result = match image {
+            ImageBitmapSource::CanvasImageSource(ref canvas) => {
+                // https://html.spec.whatwg.org/multipage/#check-the-usability-of-the-image-argument
+                if !canvas.is_valid() {
+                    p.reject_error(Error::InvalidState)
+                }
+            }
+        }
+
+        let imageBitmap = ImageBitmap::new();
+
+        imageBitmap.bitmap_data = image.bitmap_data;
     }
 
     // https://html.spec.whatwg.org/multipage/#dom-window
