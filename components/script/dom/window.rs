@@ -67,7 +67,6 @@ use crate::task_manager::TaskManager;
 use crate::task_source::{TaskSource, TaskSourceName};
 use crate::timers::{IsInterval, TimerCallback};
 use crate::webdriver_handlers::jsval_to_webdriver;
-use crate::dom::promise::Promise;
 use crate::dom::imagebitmap::ImageBitmap;
 use app_units::Au;
 use base64;
@@ -141,7 +140,7 @@ use style_traits::{CSSPixel, DevicePixel, ParsingMode};
 use url::Position;
 use webrender_api::units::{DeviceIntPoint, DeviceIntSize, LayoutPixel};
 use webrender_api::{DocumentId, ExternalScrollId};
-use canvas_state::Fetch_image_data;
+use crate::canvas_state::CanvasState;
 
 /// Current state of the window object
 #[derive(Clone, Copy, Debug, JSTraceable, MallocSizeOf, PartialEq)]
@@ -920,11 +919,12 @@ impl WindowMethods for Window {
                 let (mut image_data, image_size) = image.fetch_image_data(url)
                 .ok_or(Error::InvalidState)?;
                 imageBitmap.bitmap_data = image_data;
-                let mut imageBitmap.origin_clean = image.origin_clean;
+                let mut imageBitmapOrigin = image.origin_clean;
+                imageBitmap.origin_clean = imageBitmapOrigin;
                 p.resolve_native(&());
             }
-        }
-        p
+        };
+        p;
     }
 
     // https://html.spec.whatwg.org/multipage/#dom-window
