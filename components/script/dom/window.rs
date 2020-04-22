@@ -907,18 +907,20 @@ impl WindowMethods for Window {
             }
         }
 
+        let imageBitmap = ImageBitmap::new();
+
         let result = match image {
             ImageBitmapSource::CanvasImageSource(ref canvas) => {
                 // https://html.spec.whatwg.org/multipage/#check-the-usability-of-the-image-argument
                 if !canvas.is_valid() {
                     p.reject_error(Error::InvalidState)
                 }
+                // imageBitmap.bitmap_data = image.bitmap_data;
+                let mut imageBitmap.origin_clean = image.origin_clean;
+                p.resolve_native(&());
             }
         }
-
-        let imageBitmap = ImageBitmap::new();
-
-        imageBitmap.bitmap_data = image.bitmap_data;
+        p
     }
 
     // https://html.spec.whatwg.org/multipage/#dom-window

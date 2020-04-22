@@ -20,22 +20,24 @@ pub struct ImageBitmap {
     width: u32,
     height: u32,
     bitmap_data: DomRefCell<Vec<u8>>,
+    origin_clean: bool,
 }
 
 impl ImageBitmap {
-    fn new_inherited(width_arg: u32, height_arg: u32) -> ImageBitmap {
+    fn new_inherited(width_arg: u32, height_arg: u32, origin_clean_arg: bool) -> ImageBitmap {
         ImageBitmap {
             reflector_: Reflector::new(),
             width: width_arg,
             height: height_arg,
             bitmap_data: DomRefCell::new(vec![]),
+            origin_clean: origin_clean_arg,
         }
     }
 
     #[allow(dead_code)]
-    pub fn new(global: &GlobalScope, width: u32, height: u32) -> Fallible<DomRoot<ImageBitmap>> {
+    pub fn new(global: &GlobalScope, width: u32, height: u32, origin_clean: bool) -> Fallible<DomRoot<ImageBitmap>> {
         //assigning to a variable the return object of new_inherited
-        let imagebitmap = Box::new(ImageBitmap::new_inherited(width, height));
+        let imagebitmap = Box::new(ImageBitmap::new_inherited(width, height, origin_clean));
 
         Ok(reflect_dom_object(imagebitmap, global))
     }
