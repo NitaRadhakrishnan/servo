@@ -233,7 +233,7 @@ impl CanvasState {
         }
     }
 
-    fn fetch_image_data(
+    pub fn fetch_image_data(
         &self,
         url: ServoUrl,
         cors_setting: Option<CorsSettings>,
