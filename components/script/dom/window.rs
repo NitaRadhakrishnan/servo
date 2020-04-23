@@ -141,6 +141,7 @@ use url::Position;
 use webrender_api::units::{DeviceIntPoint, DeviceIntSize, LayoutPixel};
 use webrender_api::{DocumentId, ExternalScrollId};
 use crate::canvas_state::CanvasState;
+use crate::dom::bindings::codegen::Bindings::ImageBitmapBinding::{ImageBitmapSource, ImageBitmapOptions};
 
 /// Current state of the window object
 #[derive(Clone, Copy, Debug, JSTraceable, MallocSizeOf, PartialEq)]
@@ -892,19 +893,16 @@ impl WindowMethods for Window {
     }
 
     // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-createimagebitmap
-    fn CreateImageBitmap(&self, image: ImageBitmapSource, options: ImageBitmapOptions) -> Rc<Promise> {
+    fn CreateImageBitmap(&self, image: ImageBitmapSource, options: &ImageBitmapOptions) -> Rc<Promise> {
         let global = self.global();
         let in_realm_proof = AlreadyInRealm::assert(&global);
         let p = Promise::new_in_current_realm(&global, InRealm::Already(&in_realm_proof));
-        if options.contains_key("resizewidth") {
-            if options.get("resizewidth").unwrap() == 0 {
-                p.reject_error(Error::InvalidState)
-            }
+        if options.resizeWidth.unwrap() == 0 {
+            p.reject_error(Error::InvalidState)
         }
-        if options.contains_key("resizeheight") {
-            if options.get("resizeheight").unwrap() == 0 {
-                p.reject_error(Error::InvalidState)
-            }
+        
+        if options.resizeHeight.unwrap() == 0 {
+            p.reject_error(Error::InvalidState)
         }
 
         let imageBitmap = ImageBitmap::new();
@@ -916,15 +914,14 @@ impl WindowMethods for Window {
                     p.reject_error(Error::InvalidState)
                 }
                 let url = self.get_url().into_string();
-                let (mut image_data, image_size) = image.fetch_image_data(url)
-                .ok_or(Error::InvalidState)?;
+                let (mut image_data, image_size) = image.fetch_image_data(url);
                 imageBitmap.bitmap_data = image_data;
                 let mut imageBitmapOrigin = image.origin_clean;
                 imageBitmap.origin_clean = imageBitmapOrigin;
                 p.resolve_native(&());
             }
         };
-        p;
+        p
     }
 
     // https://html.spec.whatwg.org/multipage/#dom-window
