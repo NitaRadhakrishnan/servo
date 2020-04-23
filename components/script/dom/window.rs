@@ -140,8 +140,9 @@ use style_traits::{CSSPixel, DevicePixel, ParsingMode};
 use url::Position;
 use webrender_api::units::{DeviceIntPoint, DeviceIntSize, LayoutPixel};
 use webrender_api::{DocumentId, ExternalScrollId};
-use crate::canvas_state::CanvasState;
+// use crate::canvas_state::CanvasState;
 use crate::dom::bindings::codegen::Bindings::ImageBitmapBinding::{ImageBitmapSource, ImageBitmapOptions};
+// use crate::dom::element::cors_setting_for_element;
 
 /// Current state of the window object
 #[derive(Clone, Copy, Debug, JSTraceable, MallocSizeOf, PartialEq)]
@@ -905,22 +906,27 @@ impl WindowMethods for Window {
             p.reject_error(Error::InvalidState)
         }
 
-        let imageBitmap = ImageBitmap::new();
+        let imageBitmap = ImageBitmap::new(&global,0,0,true);
 
-        let result = match image {
-            ImageBitmapSource::CanvasImageSource(ref canvas) => {
+        //let result = match image {
+        let (image_data, image_size) = match image {
+            ImageBitmapSource::HTMLCanvasElement(ref canvas) => {
                 // https://html.spec.whatwg.org/multipage/#check-the-usability-of-the-image-argument
                 if !canvas.is_valid() {
                     p.reject_error(Error::InvalidState)
                 }
-                let url = self.get_url().into_string();
-                let (mut image_data, image_size) = image.fetch_image_data(url);
-                imageBitmap.bitmap_data = image_data;
+                // let url = self.get_url().into_string();
+                // let url = canvas.get_url().ok_or(Error::InvalidState);
+                // let cors_setting = cors_setting_for_element(canvas.upcast());
+                
+                let (data, size) = canvas.fetch_all_data();
+                imageBitmap.bitmap_data = data;
                 let mut imageBitmapOrigin = image.origin_clean;
                 imageBitmap.origin_clean = imageBitmapOrigin;
-                p.resolve_native(&());
+                // p.resolve_native(&());
             }
         };
+        p.resolve_native(&());
         p
     }
 
