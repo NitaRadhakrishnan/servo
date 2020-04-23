@@ -906,10 +906,10 @@ impl WindowMethods for Window {
             p.reject_error(Error::InvalidState)
         }
 
-        let imageBitmap = ImageBitmap::new(&global,0,0,true);
+        let mut imageBitmap = ImageBitmap::new(&global,0,0,true);
 
         //let result = match image {
-        let (image_data, image_size) = match image {
+        let promise = match image {
             ImageBitmapSource::HTMLCanvasElement(ref canvas) => {
                 // https://html.spec.whatwg.org/multipage/#check-the-usability-of-the-image-argument
                 if !canvas.is_valid() {
@@ -921,13 +921,12 @@ impl WindowMethods for Window {
                 
                 let (data, size) = canvas.fetch_all_data();
                 imageBitmap.bitmap_data = data;
-                let mut imageBitmapOrigin = image.origin_clean;
-                imageBitmap.origin_clean = imageBitmapOrigin;
-                // p.resolve_native(&());
+                imageBitmap.origin_clean = canvas.origin_clean;
+                p.resolve_native(&(imageBitmap));
+                p
             }
         };
-        p.resolve_native(&());
-        p
+        promise
     }
 
     // https://html.spec.whatwg.org/multipage/#dom-window

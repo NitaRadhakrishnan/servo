@@ -20,7 +20,7 @@ pub struct ImageBitmap {
     width: u32,
     height: u32,
     bitmap_data: DomRefCell<Vec<u8>>,
-    origin_clean: bool,
+    origin_clean: DomRefCell<bool>
 }
 
 impl ImageBitmap {
@@ -30,7 +30,7 @@ impl ImageBitmap {
             width: width_arg,
             height: height_arg,
             bitmap_data: DomRefCell::new(vec![]),
-            origin_clean: origin_clean_arg,
+            origin_clean: origin_clean_arg
         }
     }
 
